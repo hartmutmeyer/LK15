@@ -1,6 +1,6 @@
 import java.util.Scanner;
 
-public class Qudratwurzel {
+public class Quadratwurzel {
 
 	public static void main(String[] args) {
 		double radikand;

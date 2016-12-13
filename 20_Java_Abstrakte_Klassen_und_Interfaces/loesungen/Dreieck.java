@@ -11,9 +11,9 @@ public class Dreieck implements Geometrie {
 	}
 	
 	public static void main(String[] args) {
-		Dreieck drei = new Dreieck();
-		if (drei.istEckig()) {
-			System.out.println("Ein Dreieck hat " + drei.anzahlEcken() + " Ecken.");
+		Dreieck dreieck = new Dreieck();
+		if (dreieck.istEckig()) {
+			System.out.println("Ein Dreieck hat " + dreieck.anzahlEcken() + " Ecken.");
 		} else {
 			System.out.println("Ein Dreieck hat keine Ecken.");
 		}

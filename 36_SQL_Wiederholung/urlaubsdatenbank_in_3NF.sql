@@ -97,7 +97,6 @@ INSERT INTO wunsch VALUES
 # Ermittle alle Mitarbeiter (Vorname und Nachname), die mit Helga Schneider in der selben 
 # Abteilung arbeiten. Helga Schneider darf nicht in der Liste erscheinen.
 
-AND !(kollege.vorname = 'Helga' AND kollege.nachname = 'Schneider');
 
 # d6 
 # Liste die Namen (Vorname, Nachname) aller Mitarbeiter auf, die gerne einen Badeurlaub machen 

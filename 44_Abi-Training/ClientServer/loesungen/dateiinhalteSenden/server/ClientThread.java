@@ -4,130 +4,134 @@ import java.io.*;
 public class ClientThread extends Thread {
 
 	private Socket socket;
-	private boolean geheim = false;
+	private static final int NORMALER_MODUS = 0;
+	private static final int GEHEIM_MODUS = 1;
+	private int zustand = NORMALER_MODUS;
 	private static Object monitor = new Object();
+	private InputStreamReader inNet;
+	private OutputStreamWriter outNet;
 
-	public ClientThread(Socket socket) {
-		this.socket = socket;
+	public ClientThread(Socket s) {
+		socket = s;
 	}
 
+	@Override
 	public void run() {
-		System.out.println("Client-Thread gestartet");
 		int x;
+		try {
+			inNet = new InputStreamReader(socket.getInputStream(), "UTF-8");
+			outNet = new OutputStreamWriter(socket.getOutputStream(), "UTF-8");
 
-		try (InputStreamReader netIn = new InputStreamReader(socket.getInputStream(), "UTF-8");
-				OutputStreamWriter netOut = new OutputStreamWriter(socket.getOutputStream(), "UTF-8")) {
-			while ((x = netIn.read()) != -1) {
+			while ((x = inNet.read()) != -1) {
 				char c = (char) x;
-				System.out.println("Empfangen: " + c);
 				if (c >= 'a' && c <= 'z') {
-					dateiSenden(netOut, c);
+					dateiSenden(c);
 				} else {
-					if (c == '$') {
-						passwortLesen(netIn, netOut);
-					} else {
-						if (c == '%') {
-							geheim = false;
-							netOut.write("Geheimmodus ausgeschaltet" + System.lineSeparator());
-							netOut.flush();
-						} else {
-							if (c == '#') {
-								passwortAendern(netIn, netOut);
-							} else {
-								netOut.write("Falsche Eingabe" + System.lineSeparator());
-								netOut.flush();
-							}
-						}
+					switch (c) {
+					case '$':
+						passwortLesen();
+						break;
+					case '%':
+						zustand = NORMALER_MODUS;
+						outNet.write("Geheimmodus ausgeschaltet" + System.lineSeparator());
+						break;
+					case '#':
+						passwortAendern();
+						break;
+					default:
+						outNet.write("Falsche Eingabe" + System.lineSeparator());
 					}
 				}
 			}
-		} catch (Exception e) {
+		} catch (IOException e) {
 			System.out.println("ClientThread: " + e.getMessage());
+			e.printStackTrace();
 		}
 	}
 
-	public void dateiSenden(OutputStreamWriter netOut, char buchstabe) throws IOException {
-		int x;
-		String name = "" + buchstabe + ".txt";
-		System.out.println("Datei senden: " + name);
-		URL url = getClass().getResource(name);
-		try (InputStream is = new FileInputStream(url.getFile());
-				InputStreamReader fileIn = new InputStreamReader(is, "UTF-8")) {
-			if (geheim == true) {
+	private void dateiSenden(char buchstabe) throws IOException {
+		int zeichen;
+		String dateiname = buchstabe + ".txt";
+		URL url = getClass().getResource(dateiname);
+		if (url == null) {
+			outNet.write("Die Datei existiert nicht." + System.lineSeparator());
+			outNet.flush();
+			return;
+		}
+		System.out.println("Datei senden: " + dateiname);
+		try (InputStreamReader inFile = new InputStreamReader(new FileInputStream(url.getFile()), "UTF-8")) {
+			switch (zustand) {
+			case NORMALER_MODUS:
+				while ((zeichen = inFile.read()) != -1) {
+					outNet.write(zeichen);
+				}
+			break;
+			case GEHEIM_MODUS:
 				String text = "";
-				while ((x = fileIn.read()) != -1) {
-					char c = (char) x;
+				while ((zeichen = inFile.read()) != -1) {
+					char c = (char) zeichen;
 					if ((c >= 'a' && c <= 'z') || c >= 'A' && c <= 'Z') {
 						text += c;
 					} else {
 						if (text.length() >= 1) {
-							netOut.write(text.charAt(1)); // Nur den jeweils zweiten Buchstaben senden!
+							outNet.write(text.charAt(1));
 						}
 						text = "";
 					}
 				}
-
-			} else {
-				while ((x = fileIn.read()) != -1) {
-					netOut.write(x);
-				}
 			}
-			netOut.write(System.lineSeparator());
-			netOut.flush();
-		} catch (Exception e) {
-			netOut.write("Die Datei existiert nicht." + System.lineSeparator());
-			netOut.flush();
+			outNet.write(System.lineSeparator());
+			outNet.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
-	public void passwortLesen(InputStreamReader netIn, OutputStreamWriter netOut) throws Exception {
+	private void passwortLesen() throws IOException {
 		String userPassword = "";
-		int x;
-		while ((char) (x = netIn.read()) != '$') {
-			userPassword += (char) x;
+		int zeichen;
+		while ((char) (zeichen = inNet.read()) != '$') {
+			userPassword += (char) zeichen;
 		}
 		String storedPassword = "";
 		synchronized (monitor) {
 			URL url = getClass().getResource("passwort.txt");
-			try (InputStream is = new FileInputStream(url.getFile());
-					InputStreamReader fileIn = new InputStreamReader(is, "UTF-8")) {
-				while ((x = fileIn.read()) != -1) {
-					storedPassword += (char) x;
+			try (InputStreamReader inFile = new InputStreamReader(new FileInputStream(url.getFile()), "UTF-8")) {
+				while ((zeichen = inFile.read()) != -1) {
+					storedPassword += (char) zeichen;
 				}
-			} catch (Exception e) {
-				System.out.println("passwortLesen(): Fehler: " + e.getMessage());
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 		}
 		if (storedPassword.equals(userPassword)) {
-			geheim = true;
-			netOut.write("Geheimmodus aktiviert" + System.lineSeparator());
+			zustand = GEHEIM_MODUS;
+			outNet.write("Geheimmodus aktiviert" + System.lineSeparator());
 		} else {
-			netOut.write("Falsches Passwort" + System.lineSeparator());
+			outNet.write("Falsches Passwort" + System.lineSeparator());
 		}
-		netOut.flush();
+		outNet.flush();
 	}
 
-	public void passwortAendern(InputStreamReader netIn, OutputStreamWriter netOut) throws Exception {
-		String userPassword = "";
-		int x;
-		while ((char) (x = netIn.read()) != '#') {
-			userPassword += (char) x;
+	private void passwortAendern() throws IOException {
+		String newPassword = "";
+		int zeichen;
+		while ((char) (zeichen = inNet.read()) != '#') {
+			newPassword += (char) zeichen;
 		}
-		if (geheim == true) {
+		if (zustand == GEHEIM_MODUS) {
 			synchronized (monitor) {
 				URL url = getClass().getResource("passwort.txt");
-				try (OutputStream os = new FileOutputStream(url.getFile());
-						OutputStreamWriter fileOut = new OutputStreamWriter(os, "UTF-8")) {
-					fileOut.write(userPassword);
-					fileOut.flush();
-				} catch (Exception e) {
-					System.out.println("passwortAendern(): Fehler: " + e.getMessage());
+				try (OutputStreamWriter outFile = new OutputStreamWriter(new FileOutputStream(url.getFile()), "UTF-8")) {
+					outFile.write(newPassword);
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
 			}
-			netOut.write("Password geändert" + System.lineSeparator());
+			outNet.write("Password geändert" + System.lineSeparator());
 		} else {
-			netOut.write("Geheimmodus ist nicht aktiviert" + System.lineSeparator());
+			outNet.write("Geheimmodus ist nicht aktiviert" + System.lineSeparator());
 		}
-		netOut.flush();
+		outNet.flush();
 	}
 }

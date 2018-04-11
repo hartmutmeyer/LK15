@@ -9,11 +9,11 @@ import javax.swing.SwingConstants;
 public class BuchladenServer extends JFrame {
 
 	private JPanel contentPane;
-
+	
 	public BuchladenServer() {
 		super("Buchladen Server");
 		createGUI();
-		MainThread thread = new MainThread(this);
+		MainThread thread = new MainThread();
 		thread.start();
 	}
 	

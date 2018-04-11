@@ -1,10 +1,8 @@
 import java.net.*;
 
 class MainThread extends Thread {
-	BuchladenServer server;
 
-	public MainThread(BuchladenServer server) {
-		this.server = server;
+	public MainThread() {
 	}
 
 	@Override
@@ -13,7 +11,7 @@ class MainThread extends Thread {
 			System.out.println("Mainsocket angelegt");
 			while (true) {
 				Socket sock = main.accept();
-				ClientThread thread = new ClientThread(server, sock);
+				ClientThread thread = new ClientThread(sock);
 				thread.start();
 			}
 		} catch (Exception e) {

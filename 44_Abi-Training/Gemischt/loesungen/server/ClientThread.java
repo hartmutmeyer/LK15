@@ -8,8 +8,10 @@ class ClientThread extends Thread {
 	InputStreamReader in;
 	OutputStreamWriter out;
 	Statement stmt;
+	
+	static Object monitor = new Object();
 
-	public ClientThread(BuchladenServer server, Socket socket) {
+	public ClientThread(Socket socket) {
 		this.server = server;
 		this.socket = socket;
 	}
@@ -76,7 +78,7 @@ class ClientThread extends Thread {
 			cmdSQL = "DELETE FROM bestellung WHERE kundennr='" + kundennr + "' AND isbn='" + isbn + "'";
 			System.out.println(cmdSQL);
 			int erfolg = stmt.executeUpdate(cmdSQL);
-			synchronized (server) {
+			synchronized (monitor) {
 				cmdSQL = "SELECT bestand FROM buch WHERE isbn='" + isbn + "'";
 				System.out.println(cmdSQL);
 				res = stmt.executeQuery(cmdSQL);
@@ -116,7 +118,7 @@ class ClientThread extends Thread {
 		}
 		// Überprüfen, ob noch ausreichend Bücher vorhanden sind
 		int vorhanden = 0;
-		synchronized (server) {
+		synchronized (monitor) {
 			cmdSQL = "SELECT bestand FROM buch WHERE isbn='" + isbn + "'";
 			System.out.println(cmdSQL);
 			ResultSet res = stmt.executeQuery(cmdSQL);
@@ -151,12 +153,12 @@ class ClientThread extends Thread {
 		System.out.println(cmdSQL);
 		ResultSet rs = stmt.executeQuery(cmdSQL);
 		out.write('L');
-		out.flush();
+		//out.flush();
 		if (rs.next()) {
 			String zeile = rs.getString("isbn") + "   " + rs.getString("titel")
 					+ " (" + rs.getString("autor") + ")";
 			out.write(zeile);
-			out.flush();
+			//out.flush();
 			System.out.println("L" + zeile);
 		}
 		while (rs.next()) {
@@ -164,7 +166,7 @@ class ClientThread extends Thread {
 					+ rs.getString("titel") + " (" + rs.getString("autor")
 					+ ")";
 			out.write(zeile);
-			out.flush();
+			//out.flush();
 			System.out.println(zeile);
 		}
 		out.write('$');
